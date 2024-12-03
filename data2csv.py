@@ -3,7 +3,7 @@ from modelscope.msdatasets import MsDataset
 import os
 import pandas as pd
 
-MAX_DATA_NUMBER = 5000
+MAX_DATA_NUMBER = 1000
 dataset_id = 'AI-ModelScope/LaTeX_OCR'
 subset_name = 'default'
 split = 'train'

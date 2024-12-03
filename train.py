@@ -150,7 +150,7 @@ args = TrainingArguments(
     gradient_accumulation_steps=4,
     logging_steps=10,
     logging_first_step=10,
-    num_train_epochs=1,
+    num_train_epochs=2,
     save_steps=100,
     learning_rate=1e-4,
     save_on_each_node=True,
@@ -161,7 +161,7 @@ args = TrainingArguments(
 # 设置SwanLab回调
 swanlab_callback = SwanLabCallback(
     project="Qwen2-VL-ft-latexocr",
-    experiment_name="fix inference",
+    experiment_name="2B-1kdata",
     config={
         "model": "https://modelscope.cn/models/Qwen/Qwen2-VL-2B-Instruct",
         "dataset": "https://modelscope.cn/datasets/AI-ModelScope/LaTeX_OCR/summary",
@@ -204,7 +204,9 @@ val_config = LoraConfig(
 )
 
 # 获取测试模型，从output_dir中获取最新的checkpoint
-val_peft_model = PeftModel.from_pretrained(origin_model, model_id=f"{output_dir}/checkpoint-{max([int(d.split('-')[-1]) for d in os.listdir(output_dir) if d.startswith('checkpoint-')])}", config=val_config)
+load_model_path = f"{output_dir}/checkpoint-{max([int(d.split('-')[-1]) for d in os.listdir(output_dir) if d.startswith('checkpoint-')])}"
+print(f"load_model_path: {load_model_path}")
+val_peft_model = PeftModel.from_pretrained(origin_model, model_id=load_model_path, config=val_config)
 
 # 读取测试数据
 with open(val_dataset_json_path, "r") as f:
