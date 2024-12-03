@@ -10,7 +10,7 @@ train_dataset_json_path = "latex_ocr_train.json"
 val_dataset_json_path = "latex_ocr_val.json"
 # output_dir = "./output/Qwen2-VL-2B-LatexOCR"
 
-test_image_path = "/home/linzeyi/Qwen2-vl-2B-LoRA/LaTeX_OCR/0.jpg"
+test_image_path = "/home/linzeyi/Qwen2-vl-2B-LoRA/LaTeX_OCR/4998.jpg"
 
 config = LoraConfig(
     task_type=TaskType.CAUSAL_LM,

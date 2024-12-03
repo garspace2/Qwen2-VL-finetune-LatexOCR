@@ -13,12 +13,21 @@ from transformers import (
 )
 import swanlab
 import json
+import os
+
+
+prompt = "你是一个LaText OCR助手,目标是读取用户输入的照片，转换成LaTex公式。"
+model_id = "Qwen/Qwen2-VL-2B-Instruct"
+local_model_path = "./Qwen/Qwen2-VL-2B-Instruct"
+train_dataset_json_path = "latex_ocr_train.json"
+val_dataset_json_path = "latex_ocr_val.json"
+output_dir = "./output/Qwen2-VL-2B-LatexOCR"
+MAX_LENGTH = 8192
 
 def process_func(example):
     """
     将数据集进行预处理
     """
-    MAX_LENGTH = 8192
     input_ids, attention_mask, labels = [], [], []
     conversation = example["conversations"]
     input_content = conversation[0]["value"]
@@ -31,10 +40,10 @@ def process_func(example):
                 {
                     "type": "image",
                     "image": f"{file_path}",
-                    "resized_height": 280,
-                    "resized_width": 280,
+                    "resized_height": 100,
+                    "resized_width": 500,
                 },
-                {"type": "text", "text": "COCO Yes:"},
+                {"type": "text", "text": prompt},
             ],
         }
     ]
@@ -95,7 +104,7 @@ def predict(messages, model):
     inputs = inputs.to("cuda")
 
     # 生成输出
-    generated_ids = model.generate(**inputs, max_new_tokens=128)
+    generated_ids = model.generate(**inputs, max_new_tokens=MAX_LENGTH)
     generated_ids_trimmed = [
         out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
     ]
@@ -107,30 +116,17 @@ def predict(messages, model):
 
 
 # 在modelscope上下载Qwen2-VL模型到本地目录下
-model_dir = snapshot_download("Qwen/Qwen2-VL-2B-Instruct", cache_dir="./", revision="master")
+model_dir = snapshot_download(model_id, cache_dir="./", revision="master")
 
 # 使用Transformers加载模型权重
-tokenizer = AutoTokenizer.from_pretrained("./Qwen/Qwen2-VL-2B-Instruct/", use_fast=False, trust_remote_code=True)
-processor = AutoProcessor.from_pretrained("./Qwen/Qwen2-VL-2B-Instruct")
+tokenizer = AutoTokenizer.from_pretrained(local_model_path, use_fast=False, trust_remote_code=True)
+processor = AutoProcessor.from_pretrained(local_model_path)
 
-model = Qwen2VLForConditionalGeneration.from_pretrained("./Qwen/Qwen2-VL-2B-Instruct/", device_map="auto", torch_dtype=torch.bfloat16, trust_remote_code=True,)
-model.enable_input_require_grads()  # 开启梯度检查点时，要执行该方法
+origin_model = Qwen2VLForConditionalGeneration.from_pretrained(local_model_path, device_map="auto", torch_dtype=torch.bfloat16, trust_remote_code=True,)
+origin_model.enable_input_require_grads()  # 开启梯度检查点时，要执行该方法
 
 # 处理数据集：读取json文件
-# 拆分成训练集和测试集，保存为data_vl_train.json和data_vl_test.json
-train_json_path = "data_vl.json"
-with open(train_json_path, 'r') as f:
-    data = json.load(f)
-    train_data = data[:-4]
-    test_data = data[-4:]
-
-with open("data_vl_train.json", "w") as f:
-    json.dump(train_data, f)
-
-with open("data_vl_test.json", "w") as f:
-    json.dump(test_data, f)
-
-train_ds = Dataset.from_json("data_vl_train.json")
+train_ds = Dataset.from_json(train_dataset_json_path)
 train_dataset = train_ds.map(process_func)
 
 # 配置LoRA
@@ -145,16 +141,16 @@ config = LoraConfig(
 )
 
 # 获取LoRA模型
-peft_model = get_peft_model(model, config)
+train_peft_model = get_peft_model(origin_model, config)
 
 # 配置训练参数
 args = TrainingArguments(
-    output_dir="./output/Qwen2-VL-2B",
+    output_dir=output_dir,
     per_device_train_batch_size=4,
     gradient_accumulation_steps=4,
     logging_steps=10,
-    logging_first_step=5,
-    num_train_epochs=2,
+    logging_first_step=10,
+    num_train_epochs=1,
     save_steps=100,
     learning_rate=1e-4,
     save_on_each_node=True,
@@ -164,14 +160,19 @@ args = TrainingArguments(
         
 # 设置SwanLab回调
 swanlab_callback = SwanLabCallback(
-    project="Qwen2-VL-finetune",
-    experiment_name="qwen2-vl-coco2014",
+    project="Qwen2-VL-ft-latexocr",
+    experiment_name="fix inference",
     config={
         "model": "https://modelscope.cn/models/Qwen/Qwen2-VL-2B-Instruct",
-        "dataset": "https://modelscope.cn/datasets/modelscope/coco_2014_caption/quickstart",
-        "github": "https://github.com/datawhalechina/self-llm",
-        "prompt": "COCO Yes: ",
-        "train_data_number": len(train_data),
+        "dataset": "https://modelscope.cn/datasets/AI-ModelScope/LaTeX_OCR/summary",
+        # "github": "https://github.com/datawhalechina/self-llm",
+        "model_id": model_id,
+        "train_dataset_json_path": train_dataset_json_path,
+        "val_dataset_json_path": val_dataset_json_path,
+        "output_dir": output_dir,
+        "prompt": prompt,
+        "train_data_number": len(train_ds),
+        "token_max_length": MAX_LENGTH,
         "lora_rank": 64,
         "lora_alpha": 16,
         "lora_dropout": 0.1,
@@ -180,7 +181,7 @@ swanlab_callback = SwanLabCallback(
 
 # 配置Trainer
 trainer = Trainer(
-    model=peft_model,
+    model=train_peft_model,
     args=args,
     train_dataset=train_dataset,
     data_collator=DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True),
@@ -190,7 +191,7 @@ trainer = Trainer(
 # 开启模型训练
 trainer.train()
 
-# ====================测试模式===================
+# ====================测试===================
 # 配置测试参数
 val_config = LoraConfig(
     task_type=TaskType.CAUSAL_LM,
@@ -202,11 +203,11 @@ val_config = LoraConfig(
     bias="none",
 )
 
-# 获取测试模型
-val_peft_model = PeftModel.from_pretrained(model, model_id="./output/Qwen2-VL-2B/checkpoint-62", config=val_config)
+# 获取测试模型，从output_dir中获取最新的checkpoint
+val_peft_model = PeftModel.from_pretrained(origin_model, model_id=f"{output_dir}/checkpoint-{max([int(d.split('-')[-1]) for d in os.listdir(output_dir) if d.startswith('checkpoint-')])}", config=val_config)
 
 # 读取测试数据
-with open("data_vl_test.json", "r") as f:
+with open(val_dataset_json_path, "r") as f:
     test_dataset = json.load(f)
 
 test_image_list = []
@@ -214,23 +215,27 @@ for item in test_dataset:
     input_image_prompt = item["conversations"][0]["value"]
     # 去掉前后的<|vision_start|>和<|vision_end|>
     origin_image_path = input_image_prompt.split("<|vision_start|>")[1].split("<|vision_end|>")[0]
+    label = item["conversations"][1]["value"]
     
     messages = [{
         "role": "user", 
         "content": [
             {
             "type": "image", 
-            "image": origin_image_path
+            "image": origin_image_path,
+            "resized_height": 100,
+            "resized_width": 500,   
             },
             {
             "type": "text",
-            "text": "COCO Yes:"
+            "text": prompt,
             }
         ]}]
     
     response = predict(messages, val_peft_model)
-    messages.append({"role": "assistant", "content": f"{response}"})
-    print(messages[-1])
+    
+    print(f"predict:{response}")
+    print(f"gt:{label}\n")
 
     test_image_list.append(swanlab.Image(origin_image_path, caption=response))
 

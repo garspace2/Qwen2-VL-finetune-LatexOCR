@@ -13,6 +13,7 @@ from transformers import (
 )
 import swanlab
 import json
+import os
 
 
 prompt = "你是一个LaText OCR助手,目标是读取用户输入的照片，转换成LaTex公式。"
@@ -121,8 +122,8 @@ model_dir = snapshot_download(model_id, cache_dir="./", revision="master")
 tokenizer = AutoTokenizer.from_pretrained(local_model_path, use_fast=False, trust_remote_code=True)
 processor = AutoProcessor.from_pretrained(local_model_path)
 
-model = Qwen2VLForConditionalGeneration.from_pretrained(local_model_path, device_map="auto", torch_dtype=torch.bfloat16, trust_remote_code=True,)
-model.enable_input_require_grads()  # 开启梯度检查点时，要执行该方法
+origin_model = Qwen2VLForConditionalGeneration.from_pretrained(local_model_path, device_map="auto", torch_dtype=torch.bfloat16, trust_remote_code=True,)
+origin_model.enable_input_require_grads()  # 开启梯度检查点时，要执行该方法
 
 # 处理数据集：读取json文件
 train_ds = Dataset.from_json(train_dataset_json_path)
@@ -140,7 +141,7 @@ config = LoraConfig(
 )
 
 # 获取LoRA模型
-model = get_peft_model(model, config)
+train_peft_model = get_peft_model(origin_model, config)
 
 # 配置训练参数
 args = TrainingArguments(
@@ -149,7 +150,7 @@ args = TrainingArguments(
     gradient_accumulation_steps=4,
     logging_steps=10,
     logging_first_step=10,
-    num_train_epochs=2,
+    num_train_epochs=1,
     save_steps=100,
     learning_rate=1e-4,
     save_on_each_node=True,
@@ -160,7 +161,7 @@ args = TrainingArguments(
 # 设置SwanLab回调
 swanlab_callback = SwanLabCallback(
     project="Qwen2-VL-ft-latexocr",
-    experiment_name="🐒+inference_resize",
+    experiment_name="fix inference",
     config={
         "model": "https://modelscope.cn/models/Qwen/Qwen2-VL-2B-Instruct",
         "dataset": "https://modelscope.cn/datasets/AI-ModelScope/LaTeX_OCR/summary",
@@ -180,7 +181,7 @@ swanlab_callback = SwanLabCallback(
 
 # 配置Trainer
 trainer = Trainer(
-    model=model,
+    model=train_peft_model,
     args=args,
     train_dataset=train_dataset,
     data_collator=DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True),
@@ -191,10 +192,23 @@ trainer = Trainer(
 trainer.train()
 
 # ====================测试===================
+# 配置测试参数
+val_config = LoraConfig(
+    task_type=TaskType.CAUSAL_LM,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    inference_mode=True,  # 训练模式
+    r=64,  # Lora 秩
+    lora_alpha=16,  # Lora alaph，具体作用参见 Lora 原理
+    lora_dropout=0.05,  # Dropout 比例
+    bias="none",
+)
+
+# 获取测试模型，从output_dir中获取最新的checkpoint
+val_peft_model = PeftModel.from_pretrained(origin_model, model_id=f"{output_dir}/checkpoint-{max([int(d.split('-')[-1]) for d in os.listdir(output_dir) if d.startswith('checkpoint-')])}", config=val_config)
 
 # 读取测试数据
 with open(val_dataset_json_path, "r") as f:
-    test_dataset = json.load(f)[:]
+    test_dataset = json.load(f)
 
 test_image_list = []
 for item in test_dataset:
@@ -217,8 +231,8 @@ for item in test_dataset:
             "text": prompt,
             }
         ]}]
-        
-    response = predict(messages, model)
+    
+    response = predict(messages, val_peft_model)
     
     print(f"predict:{response}")
     print(f"gt:{label}\n")
