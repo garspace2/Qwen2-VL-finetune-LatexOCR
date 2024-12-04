@@ -30,18 +30,18 @@ def process_func(example):
     """
     input_ids, attention_mask, labels = [], [], []
     conversation = example["conversations"]
-    input_content = conversation[0]["value"]
+    image_file_path = conversation[0]["value"]
     output_content = conversation[1]["value"]
-    file_path = input_content.split("<|vision_start|>")[1].split("<|vision_end|>")[0]  # 获取图像路径
+    
     messages = [
         {
             "role": "user",
             "content": [
                 {
                     "type": "image",
-                    "image": f"{file_path}",
-                    "resized_height": 100,
-                    "resized_width": 500,
+                    "image": f"{image_file_path}",
+                    "resized_height": 500,
+                    "resized_width": 100,
                 },
                 {"type": "text", "text": prompt},
             ],
@@ -161,9 +161,9 @@ args = TrainingArguments(
 # 设置SwanLab回调
 swanlab_callback = SwanLabCallback(
     project="Qwen2-VL-ft-latexocr",
-    experiment_name="2B-1kdata",
+    experiment_name="7B-1kdata",
     config={
-        "model": "https://modelscope.cn/models/Qwen/Qwen2-VL-2B-Instruct",
+        "model": "https://modelscope.cn/models/Qwen/Qwen2-VL-7B-Instruct",
         "dataset": "https://modelscope.cn/datasets/AI-ModelScope/LaTeX_OCR/summary",
         # "github": "https://github.com/datawhalechina/self-llm",
         "model_id": model_id,
@@ -214,9 +214,7 @@ with open(val_dataset_json_path, "r") as f:
 
 test_image_list = []
 for item in test_dataset:
-    input_image_prompt = item["conversations"][0]["value"]
-    # 去掉前后的<|vision_start|>和<|vision_end|>
-    origin_image_path = input_image_prompt.split("<|vision_start|>")[1].split("<|vision_end|>")[0]
+    image_file_path = item["conversations"][0]["value"]
     label = item["conversations"][1]["value"]
     
     messages = [{
@@ -224,7 +222,7 @@ for item in test_dataset:
         "content": [
             {
             "type": "image", 
-            "image": origin_image_path,
+            "image": image_file_path,
             "resized_height": 100,
             "resized_width": 500,   
             },
@@ -239,7 +237,7 @@ for item in test_dataset:
     print(f"predict:{response}")
     print(f"gt:{label}\n")
 
-    test_image_list.append(swanlab.Image(origin_image_path, caption=response))
+    test_image_list.append(swanlab.Image(image_file_path, caption=response))
 
 swanlab.log({"Prediction": test_image_list})
 

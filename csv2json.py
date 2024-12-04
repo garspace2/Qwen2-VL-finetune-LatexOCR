@@ -7,7 +7,6 @@ val_json_path = './latex_ocr_val.json'
 df = pd.read_csv(csv_path)
 # Create conversation format
 conversations = []
-prompt = "你是一个LaText OCR助手,目标是读取用户输入的照片，转换成LaTex公式。"
 
 # Add image conversations
 for i in range(len(df)):
@@ -15,11 +14,11 @@ for i in range(len(df)):
         "id": f"identity_{i+1}",
         "conversations": [
             {
-                "from": "user",
-                "value": f"{prompt} <|vision_start|>{df.iloc[i]['image_path']}<|vision_end|>"
+                "role": "user",
+                "value": f"{df.iloc[i]['image_path']}"
             },
             {
-                "from": "assistant", 
+                "role": "assistant", 
                 "value": str(df.iloc[i]['text'])
             }
         ]

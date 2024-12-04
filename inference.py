@@ -3,14 +3,9 @@ from qwen_vl_utils import process_vision_info
 from peft import PeftModel, LoraConfig, TaskType
 
 prompt = "你是一个LaText OCR助手,目标是读取用户输入的照片，转换成LaTex公式。"
-# model_id = "Qwen/Qwen2-VL-2B-Instruct"
 local_model_path = "./Qwen/Qwen2-VL-2B-Instruct"
-lora_model_path = "./output/Qwen2-VL-2B-LatexOCR/checkpoint-624"
-train_dataset_json_path = "latex_ocr_train.json"
-val_dataset_json_path = "latex_ocr_val.json"
-# output_dir = "./output/Qwen2-VL-2B-LatexOCR"
-
-test_image_path = "/home/linzeyi/Qwen2-vl-2B-LoRA/LaTeX_OCR/4998.jpg"
+lora_model_path = "./output/Qwen2-VL-2B-LatexOCR/checkpoint-124"
+test_image_path = "./LaTeX_OCR/997.jpg"
 
 config = LoraConfig(
     task_type=TaskType.CAUSAL_LM,
