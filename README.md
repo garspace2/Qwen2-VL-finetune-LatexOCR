@@ -1,5 +1,7 @@
 # Qwen2-VL-finetune-LatexOCR
 
+[![](https://raw.githubusercontent.com/SwanHubX/assets/f7d1b667fc5c3da02e34ef4337b280fc17d35bb5/badge1.svg)](https://swanlab.cn/@ZeyiLin/Qwen2-VL-ft-latexocr/runs/1glks73k6u5gw98ovzwev/chart)
+
 [教程文档](https://zhuanlan.zhihu.com/p/10705293665)｜[SwanLab过程](https://swanlab.cn/@ZeyiLin/Qwen2-VL-ft-latexocr/runs/1glks73k6u5gw98ovzwev/chart)
 
 ## 1. 环境配置
