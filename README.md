@@ -1,8 +1,8 @@
 # 链接
-https://wener.me/notes/ai
-ppo: https://yugeten.github.io/posts/2025/01/ppogrpo/
-vpn: https://kaola0.com/user
-
+https://wener.me/notes/ai  
+ppo: https://yugeten.github.io/posts/2025/01/ppogrpo/  
+vpn: https://kaola0.com/user  
+RL数据格式：https://zhuanlan.zhihu.com/p/27941600074
 # Qwen2-VL-finetune-LatexOCR
 
 [![](https://raw.githubusercontent.com/SwanHubX/assets/f7d1b667fc5c3da02e34ef4337b280fc17d35bb5/badge1.svg)](https://swanlab.cn/@ZeyiLin/Qwen2-VL-ft-latexocr/runs/1glks73k6u5gw98ovzwev/chart)
