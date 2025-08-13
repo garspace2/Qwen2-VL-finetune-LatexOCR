@@ -3,7 +3,7 @@ https://wener.me/notes/ai
 ppo: https://yugeten.github.io/posts/2025/01/ppogrpo/  
 vpn: https://kaola0.com/user  
 RL数据格式：https://zhuanlan.zhihu.com/p/27941600074
-微调：https://qiankunli.github.io/2024/07/28/llm_finetune_practice.html#%E6%95%B0%E6%8D%AE%E5%87%86%E5%A4%87
+微调：https://qiankunli.github.io/2024/07/28/llm_finetune_practice.html#%E6%95%B0%E6%8D%AE%E5%87%86%E5%A4%87  
 # Qwen2-VL-finetune-LatexOCR
 
 [![](https://raw.githubusercontent.com/SwanHubX/assets/f7d1b667fc5c3da02e34ef4337b280fc17d35bb5/badge1.svg)](https://swanlab.cn/@ZeyiLin/Qwen2-VL-ft-latexocr/runs/1glks73k6u5gw98ovzwev/chart)
